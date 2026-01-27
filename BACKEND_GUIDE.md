@@ -2,6 +2,8 @@
 
 This document explains the **Backend (FastAPI)** structure of the Intelligent Banking Operations Agent. It covers every major folder and file, explaining the "logic" behind how the system processes data.
 
+> **Note**: As per the latest project refinement, the **Fraud Triage** functionality has been disabled/omitted to focus exclusively on **Credit Risk Assessment**.
+
 ---
 
 ## 🏗️ 1. Core Architecture (The Foundation)
@@ -17,7 +19,7 @@ This document explains the **Backend (FastAPI)** structure of the Intelligent Ba
 
 ### **`src/core/`**
 
-- **`config.py`**: Managing "Secrets." It uses Pydantic to read your `.env` file (like your Gemini/OpenAI keys) and makes them available to the entire app.
+- **`config.py`**: Managing "Secrets." It uses Pydantic to read your `.env` file (like your Gemini key) and makes them available to the entire app.
 - **`database.py`**: The Connection Hub.
   - **MongoDB**: The project is _prepared_ to use MongoDB for saving long-term data (like transaction history), though for the "Live Demo," most data is processed in memory.
   - **Redis**: Prepared for "Caching" to make the system super fast.
@@ -31,27 +33,25 @@ This document explains the **Backend (FastAPI)** structure of the Intelligent Ba
 
 This is where the High-Level AI logic lives.
 
-- **`fraud_triage_agent.py`**: Coordinates the fraud check. It calls the "Rule Engine," then the "ML Anomaly Detector," and finally uses **Gemini** to explain the result.
-- **`credit_risk_agent.py`**: Coordinates the loan check. It calculates DTI, checks the Scorecard, and uses **Gemini** to write the approval/rejection letter.
-- **`langgraph_workflow.py`**: The **Orchestrator**. It uses a "Graph" to decide which agent to call. If you send transaction data, it routes to Fraud. If you send application data, it routes to Credit.
-- **`banking_supervisor.py`**: The "Router." It's a simpler version of the orchestrator that looks at the incoming data and classifies it as "Fraud," "Credit," or "General Operations."
+- **`credit_risk_agent.py`**: Coordinates the loan check. It calculates DTI, checks the Scorecard, and uses **Gemini** to write the approval/rejection rationale.
+- **`langgraph_workflow.py`**: The **Orchestrator**. It uses a "Graph" (State Machine) to process requests. Currently optimized to route all operations toward the Credit Risk evaluation.
+- **`banking_supervisor.py`**: The "Router." It looks at the incoming data and classifies its intent. It now focuses on identifying Credit Risk applications.
+- **`fraud_triage_agent.py`**: _(Disabled)_ Previously handled fraud detection logic using ML and rules.
 
 ---
 
 ## 🔍 3. Data Processing (The Mechanics)
 
-### **`src/fraud_detection/`**
-
-- **`rule_engine.py`**: The "Lawbook." Contains hardcoded mathematical rules (e.g., "Flag if amount is > 5 standard deviations from normal").
-- **`iforest_model.py` (The ML Model)**:
-  - **ML Used? YES!** This file uses an **Isolation Forest** (a Machine Learning algorithm) to detect "unusual" patterns that rules might miss. It's great at finding "Outliers."
-- **`feature_engineering.py`**: The "Translator." It takes raw data (like "Amount: $100") and turns it into math (like "Z-Score: 1.5").
-- **`telemetry.py`**: The "Memory." It records every decision made so you can see them in the "Analytics" tab.
-
 ### **`src/credit_risk/`**
 
 - **`scorecard.py`**: The "Grading System." It assigns points based on DTI and Delinquency Flags.
 - **`affordability_calculator.py`**: Computes the **DTI** (Debt-to-Income) and suggests how much the bank should safely lend.
+
+### **`src/fraud_detection/`** _(Maintenance Mode)_
+
+- **`iforest_model.py`**: Uses an **Isolation Forest** (Machine Learning algorithm) to detect anomalous transaction patterns.
+- **`rule_engine.py`**: Contains hardcoded mathematical rules for fraud (e.g., Z-Score checks).
+- **`telemetry.py`**: Records decisions for analytics.
 
 ---
 
@@ -59,7 +59,7 @@ This is where the High-Level AI logic lives.
 
 ### **`src/rag/`**
 
-- **`retriever.py`**: The "Librarian." When the AI needs a rule, this file searches your `data/policies/` folder.
+- **`retriever.py`**: The "Librarian." When the AI needs a rule, this file searches the `data/policies/` folder.
 - **`vector_store`**: (Generated folder) This is a "Vector Database" (ChromaDB). It stores the text of your policies in a format that AI can search through "meaning" rather than just keywords.
 
 ---
@@ -68,21 +68,23 @@ This is where the High-Level AI logic lives.
 
 ### **`src/channels/`**
 
-- **`banking_api_routes.py`**: The "Counter."
-  - It defines the URLs the frontend calls (like `/api/v1/triage`).
-  - It validates that the data sent by the browser is in the correct format using **Pydantic Models**.
+- **`banking_api_routes.py`**: The "Interface."
+  - Defines URLs like `/api/v1/credit/triage`.
+  - Validates that the data sent by the browser is correct using **Pydantic Models**.
+  - **Note**: Fraud-related endpoints have been commented out to focus on Credit Risk.
 
 ---
 
 ## ❓ Common Questions
 
 **Does it use MongoDB?**
-**Yes and No.** The code _supports_ it (see `src/core/database.py`), but for this project's demo mode, we use **In-Memory** storage and the **ChromaDB Vector Store** to make it easy to run without requiring you to install a heavy database like Mongo.
+**Yes and No.** The code _supports_ it (see `src/core/database.py`), but for the demo, we use **In-Memory** storage and the **ChromaDB Vector Store** to avoid external dependencies.
 
 **What is the logic flow?**
 
 1. Request arrives at `banking_api_routes.py`.
-2. Routed via `langgraph_workflow.py`.
-3. Specialized Agent (`Credit` or `Fraud`) calculates math/rules.
-4. `Retriever` finds relevant policy text.
-5. `Gemini` combines everything and responds.
+2. Routed via `langgraph_workflow.py` (Orchestrator).
+3. The **Credit Agent** calculates math (DTI, Scorecard).
+4. `Retriever` finds relevant banking policy text from the knowledge base.
+5. **Gemini** combines the math + the policy to write a professional explanation.
+6. The result is returned to the Frontend.
