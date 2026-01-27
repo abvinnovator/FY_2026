@@ -1,0 +1,3 @@
+Section 2.1 - Customer Due Diligence
+Financial institutions must verify devices and locations associated with accounts and escalate when novel or high-risk signals are detected.
+

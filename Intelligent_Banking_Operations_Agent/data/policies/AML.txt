@@ -1,0 +1,4 @@
+Section 3.2 - Transaction Monitoring
+Institutions must monitor for anomalous transaction patterns including sudden spikes in amount, rapid velocity, and unusual geographies.
+Alerts should include rationale and be documented for audit.
+

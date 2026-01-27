@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="DNB">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#0aa39a"/>
+      <stop offset="100%" stop-color="#078a83"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="128" height="128" rx="16" fill="url(#bg)"/>
+  <g fill="#ffffff" font-family="Segoe UI, Roboto, Arial, sans-serif" font-weight="600">
+    <text x="16" y="82" font-size="52" letter-spacing="2">DNB</text>
+  </g>
+  <!-- Vertical line bisecting the N -->
+  <rect x="64" y="24" width="3" height="80" fill="#ffffff" opacity="0.95"/>
+</svg>
+
+

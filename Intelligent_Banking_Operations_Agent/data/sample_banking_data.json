@@ -1,0 +1,12 @@
+{
+	"transactions": [
+		{"account_id": "acct-001", "amount": 120.5, "currency": "USD", "merchant": "OnlineShop", "mcc": "7995", "geo": "US-NY", "device_id": "dev-123", "channel": "ecommerce", "timestamp": "2024-06-01T10:00:00Z"},
+		{"account_id": "acct-001", "amount": 25.0, "currency": "USD", "merchant": "CoffeeBar", "mcc": "5814", "geo": "US-NY", "device_id": "dev-123", "channel": "pos", "timestamp": "2024-06-01T09:10:00Z"}
+	],
+	"credit_apps": [
+		{"applicant_id": "app-001", "income": 4000, "liabilities": 1200, "delinquency_flags": [], "requested_limit": 1500},
+		{"applicant_id": "app-002", "income": 2500, "liabilities": 1600, "delinquency_flags": ["late_payment_30d"], "requested_limit": 2000}
+	]
+}
+
+

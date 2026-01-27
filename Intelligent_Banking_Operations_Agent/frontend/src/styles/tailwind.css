@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+	color-scheme: dark;
+}
+
+html, body, #root {
+	height: 100%;
+	margin: 0;
+	padding: 0;
+}
+
+body {
+	background-color: hsl(220 20% 6%);
+	color: hsl(220 13% 96%);
+}
+
+.container-max {
+	@apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+.focus-ring {
+	@apply focus:outline-none focus-visible:ring-2 focus-visible:ring-primary;
+}
+
+
