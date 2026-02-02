@@ -9,7 +9,7 @@ type FraudState = {
 
 type CreditState = {
 	lastCreditInput?: CreditPayload
-	creditResult?: { decision: 'approve'|'conditional'|'decline', limit_suggested: number, dti: number, reasons: string[] }
+	creditResult?: { decision: 'approve'|'review'|'decline', limit_suggested: number, dti: string | number, reasons: string[] }
 }
 
 type AppState = FraudState & CreditState & {

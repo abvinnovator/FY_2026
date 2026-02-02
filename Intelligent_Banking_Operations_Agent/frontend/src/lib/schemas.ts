@@ -14,10 +14,19 @@ export const FraudPayloadSchema = z.object({
 export type FraudPayload = z.infer<typeof FraudPayloadSchema>
 
 export const CreditPayloadSchema = z.object({
+	// Core fields (required)
 	income: z.number().min(0),
 	liabilities: z.number().min(0),
 	delinquency_flags: z.array(z.enum(['30+ days','60+ days','90+ days','bankruptcy','charge-off'])).default([]),
-	requested_limit: z.number().min(0)
+	requested_limit: z.number().min(0),
+	// Enhanced fields for ML model (optional with defaults)
+	credit_utilization: z.number().min(0).max(100).default(30),
+	credit_history_months: z.number().min(0).optional().default(36),
+	current_balance: z.number().min(0).optional(),
+	credit_limit: z.number().min(0).optional(),
+	employment_months: z.number().min(0).optional(),
+	age: z.number().min(18).max(100).optional(),
+	loan_type: z.enum(['credit_card', 'bnpl', 'personal_loan']).default('bnpl'),
 })
 
 export type CreditPayload = z.infer<typeof CreditPayloadSchema>

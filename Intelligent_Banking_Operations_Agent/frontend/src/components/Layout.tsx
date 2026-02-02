@@ -24,9 +24,9 @@ export default function Layout({ children }: { children: React.ReactNode }){
 			<div className="container-max grid grid-cols-12 gap-6 py-8">
 				<aside className="col-span-12 md:col-span-3 lg:col-span-2">
 					<nav className="rounded-xl border border-border/60 bg-neutral-950/80 backdrop-blur-sm p-2">
-						{/* <NavLink to="/" className={({isActive}) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm ${isActive ? 'bg-neutral-900 text-white' : 'text-gray-300 hover:text-white'}`}>
+						<NavLink to="/fraud" className={({isActive}) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm ${isActive ? 'bg-neutral-900 text-white' : 'text-gray-300 hover:text-white'}`}>
 							<Shield size={16} /> Fraud Triage
-						</NavLink> */}
+						</NavLink>
 						<NavLink to="/" className={({isActive}) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm ${isActive ? 'bg-neutral-900 text-white' : 'text-gray-300 hover:text-white'}`}>
 							<CreditCard size={16} /> Credit Triage
 						</NavLink>

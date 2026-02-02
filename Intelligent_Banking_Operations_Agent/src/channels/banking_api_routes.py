@@ -33,11 +33,28 @@ class ApplicationInput(BaseModel):
 	liabilities: float
 	delinquency_flags: list[str] | None = []
 	requested_limit: float | None = None
+	# New fields for ML model
+	credit_utilization: float | None = None  # 0-100 percentage
+	credit_history_months: int | None = None  # Length of credit history
+	employment_months: int | None = None  # Time at current job
+	age: int | None = None  # Applicant age
+	current_balance: float | None = None  # Current credit balance
+	credit_limit: float | None = None  # Current credit limit
+	loan_type: str = "bnpl"  # credit_card, bnpl, personal_loan
 
+
+# ========================================
+# FRAUD TRIAGE ENDPOINTS
+# ========================================
 
 @router.post("/fraud/triage")
 async def fraud_triage(input_txn: TransactionInput):
-	# For demo: use empty history and run the agent
+	"""
+	Fraud Triage with Novel Features:
+	- Risk Factor Breakdown (Explainable AI)
+	- Anomaly Score Analysis
+	- Recommended Actions
+	"""
 	agent = FraudTriageAgent()
 	result = agent.triage(
 		amount=input_txn.amount,
@@ -48,32 +65,14 @@ async def fraud_triage(input_txn: TransactionInput):
 		now=datetime.utcnow(),
 	)
 
-	# Build human-friendly explanations and summary
-	features = getattr(result, "features", {}) or {}
-	explanations: list[str] = []
-	# if features.get("amount_zscore", 0.0) >= 3.5:
-	# 	explanations.append(f"Transaction amount is {features['amount_zscore']:.1f}σ above the account's average")
-	# if features.get("geo_novelty", 0.0) >= 1.0:
-	# 	explanations.append("Transaction originates from a new or high-risk geographical location")
-	# if features.get("device_novelty", 0.0) >= 1.0:
-	# 	explanations.append("Device ID has not been seen on this account before")
-	# if features.get("high_risk_mcc", 0.0) >= 1.0 and input_txn.mcc:
-	# 	explanations.append(f"Merchant Category ({input_txn.mcc}) is flagged as high-risk")
-	# if features.get("velocity_1h_count", 0.0) >= 5:
-	# 	explanations.append("High transaction velocity in the last 1 hour")
-
-	# Always include rule hits (if any) to preserve transparency
-	# for hit in getattr(result, "rule_hits", []) or []:
-	# 	if hit not in explanations:
-	# 		explanations.append(hit)
-
-	risk_score = round(float(getattr(result, "alert_score", 0.0)) * 100)
-	risk_band = getattr(result, "risk_band", "low")
+	# Build summary
+	risk_score = round(float(result.alert_score) * 100)
+	risk_band = result.risk_band
 	risk_label = risk_band.capitalize()
 	decision_human = "Manual review recommended" if risk_band in {"medium", "high"} else "Approve"
 	summary = f"{risk_label} Risk ({risk_score}/100): {decision_human}."
 
-	# Minimal event_id and telemetry record
+	# Record telemetry
 	event_id = str(uuid4())
 	tele = TriageEvent(
 		event_id=event_id,
@@ -83,46 +82,181 @@ async def fraud_triage(input_txn: TransactionInput):
 		decision=str(result.decision),
 		risk_band=str(result.risk_band),
 		alert_score=float(result.alert_score),
-		explanations=list(explanations),
-		features=features,
+		explanations=result.rule_hits,
+		features=result.features,
 		sla_ms=None,
 	)
 	record_event(tele)
 
-	# SLA measurement (ms)
-	# Note: For this demo path, we don't capture monotonic start/end in handler; reuse fraud agent fast path
-	sla_ms = None
 	return {
 		"event_id": event_id,
 		"alert_score": result.alert_score,
 		"decision": result.decision,
 		"rationale": result.rationale,
 		"policy_citations": result.policy_citations,
-		"features": features,
+		"features": result.features,
 		"risk_band": result.risk_band,
-		"explanations": explanations,
+		"rule_hits": result.rule_hits,
 		"summary": summary,
-		"sla_ms": sla_ms,
+		# Novel fields
+		"risk_factors": result.risk_factors,
+		"anomaly_breakdown": result.anomaly_breakdown,
+		"recommended_actions": result.recommended_actions,
 	}
 
 
+# ========================================
+# CREDIT TRIAGE ENDPOINTS
+# ========================================
+
 @router.post("/credit/triage")
 async def credit_triage(input_app: ApplicationInput):
+	"""
+	Credit Risk Triage with Fuzzy Logic + ML Fusion:
+	
+	Architecture:
+	1. Fuzzy Logic Engine (10 rules based on RBI/Basel III/OCC)
+	2. CatBoost ML Model (pattern-based default prediction)
+	3. Risk Fusion Engine (weighted combination)
+	4. LLM Documentation (Gemini 2.5 Flash)
+	
+	Features:
+	- Factor Contribution Analysis (SHAP-like)
+	- What-If Scenario Simulator
+	- AI-Powered Improvement Recommendations
+	- Policy Violation Tracking
+	"""
+	from src.credit_risk.risk_fusion_engine import fuse_credit_risk
+	from src.credit_risk.scorecard import simulate_what_if
+	from src.core.config import get_settings
+	
+	# ==========================================
+	# STEP 1: RUN CREDIT RISK AGENT (FUZZY + ML)
+	# ==========================================
 	agent = CreditRiskAgent()
 	res = agent.triage(
 		income=input_app.income,
 		liabilities=input_app.liabilities,
-		delinquency_flags=input_app.delinquency_flags,
 		requested_limit=input_app.requested_limit,
+		delinquency_flags=input_app.delinquency_flags,
+		credit_utilization=input_app.credit_utilization,
+		employment_months=input_app.employment_months,
+		credit_history_months=input_app.credit_history_months,
+		age=input_app.age,
+		loan_type=input_app.loan_type,
 	)
+	
+	# Mapping result to response format
+	fusion_result = res
+	
+	# Calculate DTI for display
+	dti = round((input_app.liabilities / input_app.income * 100), 1) if input_app.income > 0 else 0
+	
+	# Calculate suggested limit (conservative: 25% of income)
+	limit_suggested = round(input_app.income * 0.25, 2)
+	
+	# ==========================================
+	# STEP 2: GENERATE WHAT-IF SCENARIOS
+	# ==========================================
+	what_if_scenarios = []
+	delinquencies = len(input_app.delinquency_flags or [])
+	
+	if input_app.liabilities > 0:
+		debt_reduction_20 = round(input_app.liabilities * 0.2, 2)
+		scenario1 = simulate_what_if(
+			current_income=input_app.income,
+			current_liabilities=input_app.liabilities,
+			current_delinquencies=delinquencies,
+			requested_limit=input_app.requested_limit,
+			liability_reduction=debt_reduction_20,
+			delinquency_flags=input_app.delinquency_flags,
+		)
+		what_if_scenarios.append({
+			"name": "Pay off 20% of debt",
+			"action": f"Reduce liabilities by ${debt_reduction_20:,.2f}",
+			**scenario1
+		})
+	
+	# ==========================================
+	# STEP 3: GENERATE LLM RATIONALE
+	# ==========================================
+	settings = get_settings()
+	rationale = ""
+	
+	if settings.google_api_key and settings.google_api_key not in ["your_google_api_key_here", ""]:
+		try:
+			import google.generativeai as genai
+			genai.configure(api_key=settings.google_api_key)
+			model = genai.GenerativeModel('gemini-2.5-flash')
+			
+			prompt = f"""You are a Senior Credit Underwriter. Write a professional rationale for this credit decision.
+
+=== FUSION ANALYSIS RESULTS ===
+Decision: {fusion_result.decision.upper()}
+Final Score: {fusion_result.final_score}/100 (Confidence: {fusion_result.confidence:.0%})
+
+Fuzzy Logic Score: {fusion_result.fuzzy_score}/100 ({fusion_result.fuzzy_band})
+ML Default Probability: {fusion_result.ml_probability:.1%} ({fusion_result.ml_risk_level} Risk)
+Fused Risk Level: {fusion_result.fused_risk_level}
+
+=== KEY FACTORS ===
+{chr(10).join(fusion_result.combined_factors)}
+
+=== POLICY VIOLATIONS ===
+{chr(10).join(fusion_result.policy_violations) if fusion_result.policy_violations else 'None detected'}
+
+=== HARD DECLINE ===
+{fusion_result.hard_decline_reason if fusion_result.hard_decline else 'Not applicable'}
+
+Write a 3-4 sentence professional rationale that:
+1. States the decision clearly
+2. References both Fuzzy Logic and ML model findings
+3. Cites specific policy violations if any
+4. Suggests one improvement action if decision is not approve
+
+Respond with ONLY the rationale text. Be professional."""
+
+			response = model.generate_content(prompt)
+			rationale = response.text.strip()
+		except Exception as e:
+			rationale = f"Decision: {fusion_result.decision.upper()}. Score: {fusion_result.final_score}/100. Risk Level: {fusion_result.fused_risk_level}."
+	else:
+		rationale = f"Decision: {fusion_result.decision.upper()}. Combined Fuzzy ({fusion_result.fuzzy_score:.0f}) + ML ({fusion_result.ml_score:.0f}) = {fusion_result.final_score:.0f}/100. Risk: {fusion_result.fused_risk_level}."
+	
+	# ==========================================
+	# STEP 4: BUILD RESPONSE
+	# ==========================================
 	return {
+		# Core decision
 		"score": res.score,
 		"decision": res.decision,
 		"rationale": res.rationale,
-		"policy_citations": res.policy_citations,
+		"dti": f"{dti}%",
+		"limit_suggested": limit_suggested,
+		
+		# Explanations
 		"key_factors": res.key_factors,
+		"policy_citations": res.policy_citations,
+		
+		# Novel fields
+		"factor_breakdown": res.factor_breakdown,
+		"improvement_tips": res.improvement_tips,
+		"what_if_scenarios": res.what_if_scenarios,
+		"risk_summary": res.risk_summary,
+		
+		# Detailed logic outputs
+		"fuzzy_score": res.fuzzy_score,
+		"fuzzy_rules": res.fuzzy_rules_fired,
+		"fuzzy_dominant_rules": res.fuzzy_dominant_rules,
+		"policy_violations": res.policy_violations,
+		"hard_decline": res.hard_decline,
+		"hard_decline_reason": res.hard_decline_reason,
 	}
 
+
+# ========================================
+# ANALYTICS ENDPOINTS
+# ========================================
 
 @router.get("/analytics/kpis")
 async def analytics_kpis():
@@ -157,19 +291,18 @@ async def fraud_events(limit: int | None = 50):
 	return {"items": items}
 
 
+# ========================================
+# RULE MANAGEMENT ENDPOINTS
+# ========================================
+
 class RuleSuggestionRequest(BaseModel):
 	limit: int | None = 3
 
 
 @router.post("/fraud/rules/suggest")
 async def fraud_rules_suggest(body: RuleSuggestionRequest):
-	# Very simple heuristic suggestions from telemetry
-	# 1) velocity_1h_count >= 5
-	# 2) high_risk_mcc == 1
-	# 3) is_night == 1
 	items = list(iter_events(limit=None))
 	def estimate(condition_fn):
-		# naive estimates vs labels embedded in explanations not available; use counts only
 		count = 0
 		for e in items:
 			try:
@@ -225,6 +358,10 @@ async def delete_rules_runtime():
 	return {"status": "cleared"}
 
 
+# ========================================
+# FRAUD CONFIG ENDPOINTS
+# ========================================
+
 @router.get("/fraud/config")
 async def get_fraud_config():
 	cfg = get_config()
@@ -256,10 +393,12 @@ async def put_fraud_config(body: UpdateFraudConfig):
 	return update_config(**{k: v for k, v in body.model_dump().items() if v is not None})
 
 
+# ========================================
+# ML MODEL ENDPOINTS
+# ========================================
+
 @router.post("/fraud/train-iforest")
 async def train_iforest():
-	# In a real system, pull historical feature rows from a feature store
-	# Here we synthesize a few rows using simple distributions
 	rows = []
 	for i in range(200):
 		rows.append({
@@ -285,6 +424,10 @@ async def fraud_model_info():
 	return {"loaded": info.loaded, "n_features": info.n_features, "feature_names": info.feature_names}
 
 
+# ========================================
+# UNIFIED TRIAGE (ORCHESTRATOR)
+# ========================================
+
 class TriageInput(BaseModel):
 	payload: dict
 
@@ -294,5 +437,3 @@ async def unified_triage(body: TriageInput):
 	orchestrator = TriageOrchestrator()
 	result = orchestrator.invoke(body.payload)
 	return result
-
-

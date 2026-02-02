@@ -26,6 +26,12 @@ def supervisor_node(state: TriageState) -> dict[str, Any]:
 
 
 def fraud_node(state: TriageState) -> dict[str, Any]:
+	"""
+	Fraud Triage Node with Novel Features:
+	- Risk Factor Breakdown
+	- Anomaly Score Analysis
+	- Recommended Actions
+	"""
 	payload = state["payload"]
 	started = perf_counter()
 	agent = FraudTriageAgent()
@@ -38,27 +44,14 @@ def fraud_node(state: TriageState) -> dict[str, Any]:
 	)
 	sla_ms = int((perf_counter() - started) * 1000)
 	event_id = str(uuid4())
-	# Build human-friendly explanations and summary for unified endpoint - COMMENTED OUT
-	features = getattr(result, "features", {}) or {}
-	explanations: list[str] = []
-	# if features.get("amount_zscore", 0.0) >= 3.5:
-	# 	explanations.append(f"Transaction amount is {features['amount_zscore']:.1f}σ above the account's average")
-	# if features.get("geo_novelty", 0.0) >= 1.0:
-	# 	explanations.append("Transaction originates from a new or high-risk geographical location")
-	# if features.get("device_novelty", 0.0) >= 1.0:
-	# 	explanations.append("Device ID has not been seen on this account before")
-	# if features.get("high_risk_mcc", 0.0) >= 1.0 and payload.get("mcc"):
-	# 	explanations.append(f"Merchant Category ({payload.get('mcc')}) is flagged as high-risk")
-	# if features.get("velocity_1h_count", 0.0) >= 5:
-	# 	explanations.append("High transaction velocity in the last 1 hour")
-	# for hit in getattr(result, "rule_hits", []) or []:
-	# 	if hit not in explanations:
-	# 		explanations.append(hit)
-	risk_score = round(float(getattr(result, "alert_score", 0.0)) * 100)
-	risk_band = getattr(result, "risk_band", "low")
+	
+	features = result.features or {}
+	risk_score = round(float(result.alert_score) * 100)
+	risk_band = result.risk_band
 	risk_label = risk_band.capitalize()
 	decision_human = "Manual review recommended" if risk_band in {"medium", "high"} else "Approve"
 	summary = f"{risk_label} Risk ({risk_score}/100): {decision_human}."
+	
 	# Record telemetry
 	record_event(TriageEvent(
 		event_id=event_id,
@@ -68,7 +61,7 @@ def fraud_node(state: TriageState) -> dict[str, Any]:
 		decision=str(result.decision),
 		risk_band=str(result.risk_band),
 		alert_score=float(result.alert_score),
-		explanations=list(explanations),
+		explanations=result.rule_hits,
 		features=features,
 		sla_ms=sla_ms,
 	))
@@ -82,23 +75,44 @@ def fraud_node(state: TriageState) -> dict[str, Any]:
 			"policy_citations": result.policy_citations,
 			"features": features,
 			"risk_band": result.risk_band,
-			"explanations": explanations,
+			"rule_hits": result.rule_hits,
 			"summary": summary,
-			"rule_hits": getattr(result, "rule_hits", []),
 			"sla_ms": sla_ms,
+			# Novel fields
+			"risk_factors": result.risk_factors,
+			"anomaly_breakdown": result.anomaly_breakdown,
+			"recommended_actions": result.recommended_actions,
 		},
 	}
 
 
 def credit_node(state: TriageState) -> dict[str, Any]:
+	"""
+	Credit Risk Node with Novel Features:
+	- Factor Contribution Analysis
+	- What-If Scenarios
+	- Improvement Recommendations
+	"""
 	payload = state["payload"]
+	income = float(payload.get("income", 0.0))
+	liabilities = float(payload.get("liabilities", 0.0))
+	
 	agent = CreditRiskAgent()
 	res = agent.triage(
-		income=float(payload.get("income", 0.0)),
-		liabilities=float(payload.get("liabilities", 0.0)),
+		income=income,
+		liabilities=liabilities,
 		delinquency_flags=list(payload.get("delinquency_flags", []) or []),
 		requested_limit=(float(payload.get("requested_limit")) if payload.get("requested_limit") is not None else None),
+		credit_utilization=payload.get("credit_utilization"),
+		credit_history_months=payload.get("credit_history_months"),
+		employment_months=payload.get("employment_months"),
+		age=payload.get("age"),
 	)
+	
+	# Calculate DTI for display
+	dti = round((liabilities / income * 100), 1) if income > 0 else 0
+	limit_suggested = round(income * 0.25, 2)
+	
 	return {
 		"result": {
 			"score": res.score,
@@ -106,6 +120,20 @@ def credit_node(state: TriageState) -> dict[str, Any]:
 			"rationale": res.rationale,
 			"policy_citations": res.policy_citations,
 			"key_factors": res.key_factors,
+			"dti": f"{dti}%",
+			"limit_suggested": limit_suggested,
+			# Novel fields
+			"factor_breakdown": res.factor_breakdown,
+			"improvement_tips": res.improvement_tips,
+			"what_if_scenarios": res.what_if_scenarios,
+			"risk_summary": res.risk_summary,
+			# Fuzzy/Policy fields
+			"fuzzy_score": res.fuzzy_score,
+			"fuzzy_rules": res.fuzzy_rules_fired,
+			"fuzzy_dominant_rules": res.fuzzy_dominant_rules,
+			"policy_violations": res.policy_violations,
+			"hard_decline": res.hard_decline,
+			"hard_decline_reason": res.hard_decline_reason,
 		},
 	}
 
@@ -116,7 +144,7 @@ def _route_by_intent(state: TriageState) -> str:
 		return "fraud"
 	if intent == "credit":
 		return "credit"
-	return "credit"  # default
+	return "credit"  # default to credit
 
 
 def build_triage_graph():
@@ -148,6 +176,3 @@ class TriageOrchestrator:
 		out = dict(state_out.get("result", {}))
 		out["intent"] = state_out.get("intent")
 		return out
-
-
-
