@@ -5,11 +5,9 @@ from typing import Any, TypedDict, Literal
 from langgraph.graph import StateGraph, END
 
 from src.agents.banking_supervisor import BankingSupervisor
-from src.agents.fraud_triage_agent import FraudTriageAgent
 from time import perf_counter
 from uuid import uuid4
 from datetime import datetime
-from src.fraud_detection.telemetry import record_event, TriageEvent
 from src.agents.credit_risk_agent import CreditRiskAgent
 
 
@@ -140,8 +138,7 @@ def credit_node(state: TriageState) -> dict[str, Any]:
 
 def _route_by_intent(state: TriageState) -> str:
 	intent = state.get("intent")
-	if intent == "fraud":
-		return "fraud"
+	# If intentional fraud is requested, we currently default to credit or handle gracefully
 	if intent == "credit":
 		return "credit"
 	return "credit"  # default to credit
@@ -150,18 +147,15 @@ def _route_by_intent(state: TriageState) -> str:
 def build_triage_graph():
 	graph = StateGraph(TriageState)
 	graph.add_node("supervisor", supervisor_node)
-	graph.add_node("fraud", fraud_node)
 	graph.add_node("credit", credit_node)
 	graph.set_entry_point("supervisor")
 	graph.add_conditional_edges(
 		"supervisor",
 		_route_by_intent,
 		{
-			"fraud": "fraud",
 			"credit": "credit",
 		},
 	)
-	graph.add_edge("fraud", END)
 	graph.add_edge("credit", END)
 	return graph.compile()
 

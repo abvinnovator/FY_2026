@@ -3,14 +3,9 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from uuid import uuid4
 
-from src.agents.fraud_triage_agent import FraudTriageAgent
-from src.fraud_detection.feature_engineering import HistoricalTxn
-from src.fraud_detection.fraud_config import get_config, update_config
-from src.fraud_detection.iforest_model import train_from_feature_rows, get_model_info
 from src.agents.credit_risk_agent import CreditRiskAgent
 from src.agents.langgraph_workflow import TriageOrchestrator
-from src.fraud_detection.telemetry import record_event, record_label, compute_kpis, TriageEvent, iter_events
-from src.fraud_detection.rules_runtime import get_runtime_rules, add_runtime_rule, clear_runtime_rules
+from src.fraud_detection.telemetry import compute_kpis
 
 router = APIRouter(tags=["banking"])
 

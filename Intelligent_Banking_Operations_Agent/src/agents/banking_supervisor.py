@@ -20,10 +20,6 @@ class BankingSupervisor:
 	"""
 
 	def classify(self, payload: dict) -> RoutingDecision:
-		# Fraud detection: Transaction-based data
-		if {"account_id", "amount"}.issubset(payload.keys()):
-			return RoutingDecision(intent="fraud", guardrails_ok=True)
-		# Credit risk: Application-based data
 		if {"income", "liabilities"}.issubset(payload.keys()):
 			return RoutingDecision(intent="credit", guardrails_ok=True)
 		return RoutingDecision(intent="operations", guardrails_ok=False)
