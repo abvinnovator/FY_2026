@@ -105,6 +105,7 @@ def credit_node(state: TriageState) -> dict[str, Any]:
 		credit_history_months=payload.get("credit_history_months"),
 		employment_months=payload.get("employment_months"),
 		age=payload.get("age"),
+		loan_type=payload.get("loan_type", "bnpl"),
 	)
 	
 	# Calculate DTI for display
