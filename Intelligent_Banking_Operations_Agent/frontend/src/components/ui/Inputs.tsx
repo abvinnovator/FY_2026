@@ -4,7 +4,7 @@ export function Label({ children, htmlFor, className='' }: { children: React.Rea
 	return <label htmlFor={htmlFor} className={`text-sm text-gray-300 ${className}`}>{children}</label>
 }
 
-export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement> & { label?: string }>(({ label, id, className='', ...rest }, ref) => {
+export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement> & { label?: React.ReactNode }>(({ label, id, className='', ...rest }, ref) => {
 	return (
 		<div className="space-y-1">
 			{label && <Label htmlFor={id}>{label}</Label>}
@@ -14,7 +14,7 @@ export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTML
 })
 Input.displayName = 'Input'
 
-export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement> & { label?: string }>(({ label, id, className='', children, ...rest }, ref) => {
+export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement> & { label?: React.ReactNode }>(({ label, id, className='', children, ...rest }, ref) => {
 	return (
 		<div className="space-y-1">
 			{label && <Label htmlFor={id}>{label}</Label>}
@@ -26,7 +26,7 @@ export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<H
 })
 Select.displayName = 'Select'
 
-export const TextArea = forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label?: string }>(({ label, id, className='', ...rest }, ref) => {
+export const TextArea = forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label?: React.ReactNode }>(({ label, id, className='', ...rest }, ref) => {
 	return (
 		<div className="space-y-1">
 			{label && <Label htmlFor={id}>{label}</Label>}

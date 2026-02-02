@@ -1,0 +1,197 @@
+[
+  {
+    "id": "FUZZY-DTI-001",
+    "name": "DTI Excellence Rule",
+    "description": "IF DTI is excellent AND limit_ratio is NOT excessive THEN score is excellent",
+    "policy": "RBI Circular on Personal Loans 2024",
+    "conditions": [["dti", "excellent"]],
+    "consequent": ["credit_score", "good"],
+    "weight": 0.8,
+    "_note": "Reduced weight - DTI alone should not dominate"
+  },
+  {
+    "id": "FUZZY-DTI-002",
+    "name": "High DTI Risk Rule",
+    "description": "IF DTI is high AND utilization is high THEN score is poor",
+    "policy": "Basel III - Leverage Ratio Framework",
+    "conditions": [["dti", "high"], ["utilization", "high"]],
+    "consequent": ["credit_score", "poor"],
+    "weight": 1.2
+  },
+  {
+    "id": "FUZZY-DTI-003",
+    "name": "Critical DTI Rule",
+    "description": "IF DTI is critical THEN score is very_poor",
+    "policy": "OCC Ability-to-Repay Standard",
+    "conditions": [["dti", "critical"]],
+    "consequent": ["credit_score", "very_poor"],
+    "weight": 1.5
+  },
+  {
+    "id": "FUZZY-DEL-001",
+    "name": "Clean Payment History Rule",
+    "description": "IF delinquency is clean AND history is mature THEN score is excellent",
+    "policy": "RBI Credit Information Bureau Guidelines",
+    "conditions": [["delinquency", "clean"], ["history_length", "mature"]],
+    "consequent": ["credit_score", "excellent"],
+    "weight": 1.3
+  },
+  {
+    "id": "FUZZY-DEL-002",
+    "name": "Serious Delinquency Rule",
+    "description": "IF delinquency is serious OR delinquency is severe THEN score is very_poor",
+    "policy": "Basel III - Non-Performing Asset Classification",
+    "conditions": [["delinquency", "serious"]],
+    "conditions_alt": [["delinquency", "severe"]],
+    "consequent": ["credit_score", "very_poor"],
+    "weight": 1.5,
+    "logic": "OR"
+  },
+  {
+    "id": "FUZZY-DEL-003",
+    "name": "Minor Delinquency Warning Rule",
+    "description": "IF delinquency is minor THEN score is fair",
+    "policy": "Credit Bureau Reporting Standards",
+    "conditions": [["delinquency", "minor"]],
+    "consequent": ["credit_score", "fair"],
+    "weight": 1.0
+  },
+  {
+    "id": "FUZZY-EMP-001",
+    "name": "Employment Stability Rule",
+    "description": "IF employment is very_stable AND income is good THEN score is good",
+    "policy": "OCC Employment Verification Standards",
+    "conditions": [["employment", "very_stable"], ["income", "good"]],
+    "consequent": ["credit_score", "good"],
+    "weight": 1.0
+  },
+  {
+    "id": "FUZZY-HIST-001",
+    "name": "Thin Credit File Rule",
+    "description": "IF history is thin AND employment is unstable THEN score is poor",
+    "policy": "RBI First-Time Borrower Guidelines",
+    "conditions": [["history_length", "thin"], ["employment", "unstable"]],
+    "consequent": ["credit_score", "poor"],
+    "weight": 1.1
+  },
+  {
+    "id": "FUZZY-REQ-001",
+    "name": "Conservative Request Rule",
+    "description": "IF limit_ratio is conservative AND DTI is good THEN score is good",
+    "policy": "Prudential Lending Standards",
+    "conditions": [["limit_ratio", "conservative"], ["dti", "good"]],
+    "consequent": ["credit_score", "good"],
+    "weight": 1.0
+  },
+  {
+    "id": "FUZZY-REQ-002",
+    "name": "Excessive Request Warning Rule",
+    "description": "IF limit_ratio is excessive THEN score is fair (compound check handles decline)",
+    "policy": "OCC Concentration Risk Guidance",
+    "conditions": [["limit_ratio", "excessive"]],
+    "consequent": ["credit_score", "fair"],
+    "weight": 1.0,
+    "_note": "Reduced weight - compound affordability check in policy layer handles hard decline"
+  },
+  {
+    "id": "FUZZY-REQ-003",
+    "name": "Stretched Request Warning Rule",
+    "description": "IF limit_ratio is stretched THEN score is fair",
+    "policy": "Prudential Lending Standards",
+    "conditions": [["limit_ratio", "stretched"]],
+    "consequent": ["credit_score", "fair"],
+    "weight": 1.2
+  },
+  {
+    "id": "FUZZY-UTL-001",
+    "name": "High Utilization Warning Rule",
+    "description": "IF utilization is high THEN score is fair",
+    "policy": "Credit Utilization Best Practices",
+    "conditions": [["utilization", "high"]],
+    "consequent": ["credit_score", "fair"],
+    "weight": 1.0
+  },
+  {
+    "id": "FUZZY-UTL-002",
+    "name": "Critical Utilization Rule",
+    "description": "IF utilization is critical THEN score is poor",
+    "policy": "Credit Stress Indicators",
+    "conditions": [["utilization", "critical"]],
+    "consequent": ["credit_score", "poor"],
+    "weight": 1.3
+  },
+  {
+    "id": "FUZZY-COMBO-001",
+    "name": "Delinquency Plus High Utilization Rule",
+    "description": "IF delinquency is minor AND utilization is high THEN score is poor",
+    "policy": "Multi-Factor Risk Assessment",
+    "conditions": [["delinquency", "minor"], ["utilization", "high"]],
+    "consequent": ["credit_score", "poor"],
+    "weight": 1.3
+  },
+  {
+    "id": "FUZZY-COMBO-002",
+    "name": "Good DTI With High Request Rule",
+    "description": "IF DTI is excellent AND limit_ratio is stretched THEN score is fair (not decline)",
+    "policy": "Affordability vs Request Balance",
+    "conditions": [["dti", "excellent"], ["limit_ratio", "stretched"]],
+    "consequent": ["credit_score", "fair"],
+    "weight": 0.8,
+    "_note": "Compound affordability check handles final decision"
+  },
+  {
+    "id": "FUZZY-PRIME-001",
+    "name": "Prime Applicant Rule",
+    "description": "IF DTI is excellent AND utilization is excellent AND delinquency is clean THEN score is excellent",
+    "policy": "Prime Lending Criteria",
+    "conditions": [["dti", "excellent"], ["utilization", "excellent"], ["delinquency", "clean"]],
+    "consequent": ["credit_score", "excellent"],
+    "weight": 1.5,
+    "_note": "Prime applicants get boosted score"
+  },
+  {
+    "id": "FUZZY-BALANCED-001",
+    "name": "Balanced Profile Rule",
+    "description": "IF DTI is moderate AND utilization is good AND delinquency is clean THEN score is fair",
+    "policy": "Comprehensive Credit Assessment Framework",
+    "conditions": [["dti", "moderate"], ["utilization", "good"], ["delinquency", "clean"]],
+    "consequent": ["credit_score", "fair"],
+    "weight": 1.0
+  },
+  {
+    "id": "FUZZY-IDEAL-001",
+    "name": "Ideal Applicant Rule",
+    "description": "IF DTI is excellent AND utilization is excellent AND delinquency is clean AND limit_ratio is conservative THEN score is excellent",
+    "policy": "Prime Lending Criteria",
+    "conditions": [["dti", "excellent"], ["utilization", "excellent"], ["delinquency", "clean"], ["limit_ratio", "conservative"]],
+    "consequent": ["credit_score", "excellent"],
+    "weight": 1.5
+  },
+  {
+    "id": "FUZZY-AGE-001",
+    "name": "Mature Prime Rule",
+    "description": "IF age is prime AND history is mature THEN score is excellent",
+    "policy": "Life-Cycle Credit Scoring Model",
+    "conditions": [["age", "prime"], ["history_length", "mature"]],
+    "consequent": ["credit_score", "excellent"],
+    "weight": 1.1
+  },
+  {
+    "id": "FUZZY-STABLE-001",
+    "name": "Ultra-Stable Income Rule",
+    "description": "IF income is high AND employment is very_stable THEN score is excellent",
+    "policy": "HNW Lending Policy",
+    "conditions": [["income", "high"], ["employment", "very_stable"]],
+    "consequent": ["credit_score", "excellent"],
+    "weight": 1.2
+  },
+  {
+    "id": "FUZZY-LOWRISK-001",
+    "name": "Low Income Risk Rule",
+    "description": "IF income is low THEN score is fair",
+    "policy": "Minimum Income Standards",
+    "conditions": [["income", "low"]],
+    "consequent": ["credit_score", "fair"],
+    "weight": 1.0
+  }
+]

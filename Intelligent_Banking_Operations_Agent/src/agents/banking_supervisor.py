@@ -23,5 +23,3 @@ class BankingSupervisor:
 		if {"income", "liabilities"}.issubset(payload.keys()):
 			return RoutingDecision(intent="credit", guardrails_ok=True)
 		return RoutingDecision(intent="operations", guardrails_ok=False)
-
-

@@ -70,13 +70,30 @@ async def root():
 if banking_router is not None:
 	app.include_router(banking_router, prefix="/api/v1")
 
-# Serve built frontend if available
+# Serve built frontend if available (BFF pattern)
+# API routes at /api/v1/* take priority, static files serve everything else
 frontend_dist = os.path.join(os.path.dirname(__file__), "frontend", "dist")
 if os.path.isdir(frontend_dist):
-	try:
-		app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
-	except Exception:
-		pass
+	from fastapi.responses import FileResponse
+	from starlette.exceptions import HTTPException as StarletteHTTPException
+	
+	# Serve static assets (js, css, images, etc.)
+	app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="assets")
+	
+	# Catch-all route for SPA - MUST be after API routes
+	@app.get("/{full_path:path}")
+	async def serve_spa(full_path: str):
+		# Don't intercept API routes
+		if full_path.startswith("api/"):
+			raise StarletteHTTPException(status_code=404, detail="Not Found")
+		
+		# Try to serve the file directly
+		file_path = os.path.join(frontend_dist, full_path)
+		if os.path.isfile(file_path):
+			return FileResponse(file_path)
+		
+		# Fallback to index.html for SPA routing
+		return FileResponse(os.path.join(frontend_dist, "index.html"))
 
 
 def run():
