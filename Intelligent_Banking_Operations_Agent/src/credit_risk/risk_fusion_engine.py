@@ -4,9 +4,9 @@ Risk Fusion Engine
 Combines Fuzzy Logic and ML model predictions for final credit decision.
 
 Architecture:
-    Customer Data → Feature Engineering → Fuzzy Logic (10 Rules)
-                                       → CatBoost ML Model
-                                       → Risk Fusion → Decision
+    Customer Data -> Feature Engineering -> Fuzzy Logic (10 Rules)
+                                       -> BrownBoost ML Model
+                                       -> Risk Fusion -> Decision
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Optional
 
 from src.credit_risk.fuzzy_scorecard import calculate_fuzzy_score, FuzzyScorecardResult
-from src.credit_risk.catboost_model import predict_credit_risk, MLPredictionResult
+from src.credit_risk.brownboost_model import predict_credit_risk, MLPredictionResult
 
 # Set up logger
 logger = logging.getLogger("FUSION_ENGINE")
@@ -155,10 +155,10 @@ class RiskFusionEngine:
         logger.info(f"  Rules Fired    : {fuzzy_result.dominant_rules}")
         
         # ========================================
-        # ML MODEL (CatBoost)
+        # ML MODEL (BrownBoost)
         # ========================================
         logger.info("-" * 60)
-        logger.info("STEP 4: CATBOOST ML MODEL")
+        logger.info("STEP 4: BROWNBOOST ML MODEL")
         ml_result = predict_credit_risk(
             dti=dti,
             utilization=utilization,

@@ -83,11 +83,11 @@ export default function CreditTriage(){
 								<Input step="1" type="number" {...register('credit_history_months', { valueAsNumber: true })} label="Credit History (months)" />
 								<Input step="1" type="number" {...register('employment_months', { valueAsNumber: true })} label="Employment (months)" />
 								<Input step="1" type="number" {...register('age', { valueAsNumber: true })} label="Age (years)" />
-								<Input step="100" type="number" {...register('current_balance', { valueAsNumber: true })} label="Current Balance ($)" />
+								{/* <Input step="100" type="number" {...register('current_balance', { valueAsNumber: true })} label="Current Balance ($)" />
 								
 								<div className="col-span-2">
 									<Input step="500" type="number" {...register('credit_limit', { valueAsNumber: true })} label="Current Credit Limit ($)" />
-								</div>
+								</div> */}
 
 								<label className="flex flex-col gap-1 text-sm col-span-2">Delinquency Flags<select multiple {...register('delinquency_flags')} className="focus-ring rounded bg-neutral-900 border border-border/60 px-3 py-2 h-24">
 									<option>30+ days</option>
@@ -100,7 +100,7 @@ export default function CreditTriage(){
 							
 							<div className="mt-6 flex items-center gap-3">
 								<Button type="submit" disabled={isSubmitting} className="w-full md:w-auto">{isSubmitting ? 'Analyzing…' : 'Run Risk Analysis'}</Button>
-								<span className="text-xs text-gray-500">Hybrid Risk Engine Engaged</span>
+								{/* <span className="text-xs text-gray-500">Hybrid Risk Engine Engaged</span> */}
 							</div>
 						</CardContent>
 					</Card>

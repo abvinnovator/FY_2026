@@ -111,7 +111,7 @@ async def credit_triage(input_app: ApplicationInput):
 	
 	Architecture:
 	1. Fuzzy Logic Engine (10 rules based on RBI/Basel III/OCC)
-	2. CatBoost ML Model (pattern-based default prediction)
+	2. BrownBoost ML Model (pattern-based default prediction)
 	3. Risk Fusion Engine (weighted combination)
 	4. LLM Documentation (Gemini 2.5 Flash)
 	
