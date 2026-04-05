@@ -7,7 +7,7 @@ from src.credit_risk.affordability_calculator import compute_dti
 from src.credit_risk.scorecard import calculate_scorecard, simulate_what_if, PolicyViolation
 from src.credit_risk.policy_engine import apply_minimums
 from src.credit_risk.fuzzy_scorecard import calculate_fuzzy_score, FuzzyScorecardResult
-from src.credit_risk.catboost_model import predict_credit_risk, MLPredictionResult
+from src.credit_risk.brownboost_model import predict_credit_risk, MLPredictionResult
 
 
 @dataclass
@@ -89,9 +89,9 @@ class CreditRiskAgent:
 		# Uses Mamdani fuzzy inference system
 		# ==========================================
 		print("\n" + "="*80)
-		print("🚀 [AGENT] FUZZY LOGIC TRIGGERED")
+		print(" [AGENT] FUZZY LOGIC TRIGGERED")
 		print("="*80)
-		print(f"📥 Inputs: DTI={dti*100:.1f}%, Utilization={credit_utilization or 30.0}%, Delinquencies={delinquencies}")
+		print(f" Inputs: DTI={dti*100:.1f}%, Utilization={credit_utilization or 30.0}%, Delinquencies={delinquencies}")
 		
 		fuzzy_result = calculate_fuzzy_score(
 			dti=dti,
@@ -106,21 +106,21 @@ class CreditRiskAgent:
 			loan_type=loan_type,
 		)
 		
-		print(f"✅ FUZZY COMPLETE: Score={fuzzy_result.score}, Decision={fuzzy_result.decision}, Band={fuzzy_result.band}")
-		print(f"📜 Rules Fired: {len([r for r in fuzzy_result.rule_results if r.firing_strength > 0])} rules")
+		print(f" FUZZY COMPLETE: Score={fuzzy_result.score}, Decision={fuzzy_result.decision}, Band={fuzzy_result.band}")
+		print(f" Rules Fired: {len([r for r in fuzzy_result.rule_results if r.firing_strength > 0])} rules")
 		for r in fuzzy_result.dominant_rules[:3]:
 			print(f"   - {r}")
 		
 		# ==========================================
-		# ML LOGIC (CATBOOST MODEL)
+		# ML LOGIC (BROWNBOOST MODEL)
 		# Production ML model for default prediction
 		# ==========================================
 		print("\n" + "="*80)
-		print("🧠 [AGENT] ML LOGIC TRIGGERED (CatBoost)")
+		print(" [AGENT] ML LOGIC TRIGGERED (BrownBoost)")
 		print("="*80)
 		
 		# Map inputs for ML model
-		# ML Model features (per notebook): 
+		# ML Model features: 
 		# 1. dti (decimal)
 		# 2. utilization (decimal) 
 		# 3. limit_ratio (decimal)
@@ -143,8 +143,8 @@ class CreditRiskAgent:
 			ml_delinquency = 2
 			ml_credit_history_count = min(6, delinquencies)
 		
-		print(f"📥 ML Inputs: dti={dti:.4f}, utilization={ml_utilization:.4f}, limit_ratio={requested_limit_ratio or 0.4:.4f}")
-		print("⏳ Processing through CatBoost model...")
+		print(f" ML Inputs: dti={dti:.4f}, utilization={ml_utilization:.4f}, limit_ratio={requested_limit_ratio or 0.4:.4f}")
+		print(" Processing through BrownBoost model...")
 		
 		try:
 			ml_result = predict_credit_risk(
@@ -154,11 +154,11 @@ class CreditRiskAgent:
 				delinquency=ml_delinquency,
 				credit_history=ml_credit_history_count
 			)
-			print(f"✅ ML OUTPUT: Probability of Default={ml_result.default_probability*100:.1f}%")
-			print(f"📈 Risk Level: {ml_result.risk_level}")
-			print(f"🚩 Top Factors: {ml_result.top_risk_factors}")
+			print(f" ML OUTPUT: Probability of Default={ml_result.default_probability*100:.1f}%")
+			print(f" Risk Level: {ml_result.risk_level}")
+			print(f" Top Factors: {ml_result.top_risk_factors}")
 		except Exception as e:
-			print(f"❌ ML MODEL ERROR: {e}")
+			print(f" ML MODEL ERROR: {e}")
 			ml_result = None
 		
 		# Also run traditional scorecard for comparison (keeps existing policy violations)
@@ -350,13 +350,13 @@ class CreditRiskAgent:
 		settings = get_settings()
 		
 		print("\n" + "="*80)
-		print("🤖 [AGENT] LLM TRIGGERED (Gemini-2.0)")
+		print("[AGENT] LLM TRIGGERED (Gemini-2.0)")
 		print("="*80)
-		print("⏳ Generating human-readable rationale citing policies...")
+		print("Generating human-readable rationale citing policies...")
 		
 		rationale = ""
 		
-		if settings.google_api_key and settings.google_api_key not in ["your_google_api_key_here", ""]:
+		if settings.google_api_key and settings.google_api_key not in ["google_api_key_here", ""]:
 			try:
 				import google.generativeai as genai
 				genai.configure(api_key=settings.google_api_key)

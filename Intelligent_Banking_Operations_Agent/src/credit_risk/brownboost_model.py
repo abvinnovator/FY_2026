@@ -1,40 +1,39 @@
 """
-CatBoost Credit Risk Model
-==========================
+BrownBoost Credit Risk Model
+=============================
 Production ML model for credit default prediction.
 
-Model: CatBoost trained on UCI Credit Card Dataset
+Model: BrownBoost (AdaBoost + Decision Stumps) trained on Credit Risk Dataset
 Features: dti, utilization, limit_ratio, delinquency, credit_history
-Output: Default probability, risk level, top risk factors (SHAP)
+Output: Default probability, risk level, top risk factors (permutation importance)
 """
 
 from __future__ import annotations
 
 import logging
+import numpy as np
 import pandas as pd
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Dict
 
-# Lazy import catboost - don't break route loading if not installed
-CATBOOST_AVAILABLE = False
-CatBoostClassifier = None
-Pool = None
-
-try:
-    from catboost import CatBoostClassifier, Pool
-    CATBOOST_AVAILABLE = True
-except ImportError:
-    print("WARNING: catboost not installed. ML model predictions will be disabled.")
-
 # Set up logger
 logger = logging.getLogger("ML_MODEL")
 logger.setLevel(logging.INFO)
 
+# Lazy import - don't break route loading if dependencies missing
+BROWNBOOST_AVAILABLE = False
+
+try:
+    import joblib
+    BROWNBOOST_AVAILABLE = True
+except ImportError:
+    print("WARNING: joblib not installed. ML model predictions will be disabled.")
+
 
 @dataclass
 class MLPredictionResult:
-    """Result from CatBoost ML model prediction."""
+    """Result from BrownBoost ML model prediction."""
     default_probability: float
     risk_level: str
     top_risk_factors: List[str]
@@ -54,23 +53,30 @@ FEATURE_DESCRIPTIONS = {
 }
 
 
-class CatBoostCreditModel:
+class BrownBoostCreditModel:
     """
-    CatBoost model for credit default prediction.
-    Loads pre-trained model from .cbm file.
+    BrownBoost model for credit default prediction.
+    Loads pre-trained model from .pkl file.
     """
     
-    MODEL_PATH = Path(__file__).parent / "catboost_credit_model.cbm"
+    MODEL_PATH = Path(__file__).parent / "brownboost_credit_model.pkl"
     
     def __init__(self):
         if not self.MODEL_PATH.exists():
             raise FileNotFoundError(
                 f"Model file not found: {self.MODEL_PATH}\n"
-                "Please run the notebook to generate catboost_credit_model.cbm"
+                "Please run brownboost_train.py to generate brownboost_credit_model.pkl"
             )
         
-        self.model = CatBoostClassifier()
-        self.model.load_model(str(self.MODEL_PATH))
+        artifacts = joblib.load(str(self.MODEL_PATH))
+        self.model = artifacts["model"]
+        self.imputer = artifacts["imputer"]
+        self.threshold = artifacts["threshold"]
+        self._feature_names = artifacts["feature_names"]
+        
+        logger.info(f"BrownBoost model loaded from {self.MODEL_PATH}")
+        logger.info(f"  Threshold: {self.threshold:.4f}")
+        logger.info(f"  Features: {self._feature_names}")
     
     def predict(
         self,
@@ -97,7 +103,7 @@ class CatBoostCreditModel:
         
         # LOG INPUT
         logger.info("=" * 50)
-        logger.info("ML MODEL INPUT")
+        logger.info("ML MODEL INPUT (BrownBoost)")
         logger.info("=" * 50)
         logger.info(f"  dti            : {dti:.4f}")
         logger.info(f"  utilization    : {utilization:.4f}")
@@ -105,33 +111,27 @@ class CatBoostCreditModel:
         logger.info(f"  delinquency    : {delinquency}")
         logger.info(f"  credit_history : {credit_history}")
         
-        # Create input DataFrame with correct column order
-        input_df = pd.DataFrame([{
-            "dti": dti,
-            "utilization": utilization,
-            "limit_ratio": limit_ratio,
-            "delinquency": delinquency,
-            "credit_history": credit_history
-        }])[FEATURE_NAMES]
+        # Create input array with correct feature order
+        input_raw = np.array([[dti, utilization, limit_ratio, delinquency, credit_history]])
         
-        # Get probability
-        prob = float(self.model.predict_proba(input_df)[0][1])
+        # Impute (handles any NaN edge cases)
+        input_imp = self.imputer.transform(input_raw)
         
-        # Get SHAP values
-        pool = Pool(input_df)
-        shap_values = self.model.get_feature_importance(pool, type="ShapValues")
-        shap_contrib = shap_values[0][:-1]  # Remove base value
+        # Get probability of default (class 1)
+        prob = float(self.model.predict_proba(input_imp)[0][1])
         
-        # Build feature importance dict
-        feature_importance = {
-            FEATURE_NAMES[i]: float(shap_contrib[i]) 
-            for i in range(len(FEATURE_NAMES))
-        }
+        # Compute feature importance via perturbation analysis
+        # (BrownBoost doesn't have native SHAP, so we use sensitivity-based importance)
+        feature_importance = self._compute_feature_importance(input_imp, prob)
         
-        # Get top risk factors (positive SHAP = increases risk)
+        # Get top risk factors (positive importance = increases risk)
         positive_factors = {k: v for k, v in feature_importance.items() if v > 0}
         sorted_factors = sorted(positive_factors.items(), key=lambda x: x[1], reverse=True)
         top_risk_factors = [FEATURE_DESCRIPTIONS[f[0]] for f in sorted_factors[:3]]
+        
+        # If no positive factors found, report overall risk
+        if not top_risk_factors:
+            top_risk_factors = ["Overall profile within acceptable bounds"]
         
         # Determine risk level
         if prob < 0.3:
@@ -143,12 +143,12 @@ class CatBoostCreditModel:
         
         # LOG OUTPUT
         logger.info("-" * 50)
-        logger.info("ML MODEL OUTPUT")
+        logger.info("ML MODEL OUTPUT (BrownBoost)")
         logger.info("-" * 50)
         logger.info(f"  Default Probability : {prob:.4f} ({prob*100:.1f}%)")
         logger.info(f"  Risk Level          : {risk_level}")
         logger.info(f"  Top Risk Factors    : {top_risk_factors}")
-        logger.info(f"  SHAP Values         : {feature_importance}")
+        logger.info(f"  Feature Importance  : {feature_importance}")
         logger.info("=" * 50)
         
         return MLPredictionResult(
@@ -157,17 +157,50 @@ class CatBoostCreditModel:
             top_risk_factors=top_risk_factors,
             feature_importance=feature_importance,
         )
+    
+    def _compute_feature_importance(
+        self, input_imp: np.ndarray, base_prob: float
+    ) -> Dict[str, float]:
+        """
+        Compute per-feature importance using perturbation analysis.
+        For each feature, perturb it slightly and measure the change in prediction.
+        This gives a SHAP-like local explanation.
+        """
+        importance = {}
+        perturbation = 0.1  # 10% perturbation
+        
+        for i, name in enumerate(FEATURE_NAMES):
+            perturbed = input_imp.copy()
+            original_val = perturbed[0, i]
+            
+            # Perturb upward
+            perturbed[0, i] = original_val + perturbation
+            prob_up = float(self.model.predict_proba(perturbed)[0][1])
+            
+            # Perturb downward
+            perturbed[0, i] = max(0, original_val - perturbation)
+            prob_down = float(self.model.predict_proba(perturbed)[0][1])
+            
+            # Sensitivity: how much does the probability change?
+            # Positive = this feature increases default risk at current value
+            sensitivity = (prob_up - prob_down) / 2.0
+            
+            # Scale by the actual feature value to get contribution
+            contribution = sensitivity * original_val
+            importance[name] = round(contribution, 4)
+        
+        return importance
 
 
 # Global model instance
-_model: CatBoostCreditModel = None
+_model: BrownBoostCreditModel = None
 
 
-def get_model() -> CatBoostCreditModel:
+def get_model() -> BrownBoostCreditModel:
     """Get the global ML model instance."""
     global _model
     if _model is None:
-        _model = CatBoostCreditModel()
+        _model = BrownBoostCreditModel()
     return _model
 
 
@@ -180,7 +213,7 @@ def predict_credit_risk(
     credit_history: int,
 ) -> MLPredictionResult:
     """
-    Predict credit risk using CatBoost model.
+    Predict credit risk using BrownBoost model.
     
     Args:
         dti: Debt-to-income ratio (0-1)
@@ -192,8 +225,8 @@ def predict_credit_risk(
     Returns:
         MLPredictionResult
     """
-    if not CATBOOST_AVAILABLE:
-        print("ERROR: catboost module not installed - ML predictions disabled")
+    if not BROWNBOOST_AVAILABLE:
+        print("ERROR: joblib module not installed - ML predictions disabled")
         # Return a placeholder result based on simple heuristics
         risk_score = min(1.0, dti + utilization * 0.3 + delinquency * 0.1)
         if risk_score > 0.6:
